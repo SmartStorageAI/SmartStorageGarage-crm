@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/client.dart'; // <- Importa tu modelo
 
 class ClientsPage extends StatelessWidget {
   const ClientsPage({super.key});
@@ -25,7 +26,7 @@ class ClientsPage extends StatelessWidget {
                   label: const Text('Nuevo Cliente'),
                   onPressed: () => showDialog(
                     context: context,
-                    builder: (_) => ClientDialog(),
+                    builder: (_) => const ClientDialog(),
                   ),
                 ),
               ],
@@ -43,7 +44,9 @@ class ClientsPage extends StatelessWidget {
                     return const Center(child: Text("No hay clientes registrados."));
                   }
 
-                  final clients = snapshot.data!.docs;
+                  final clients = snapshot.data!.docs
+                      .map((doc) => Client.fromDoc(doc))
+                      .toList();
 
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -57,31 +60,29 @@ class ClientsPage extends StatelessWidget {
                         DataColumn(label: Text('Contenedores')),
                         DataColumn(label: Text('Acciones')),
                       ],
-                      rows: clients.map((doc) {
-                        final data = doc.data()! as Map<String, dynamic>;
+                      rows: clients.map((client) {
                         return DataRow(cells: [
-                          DataCell(Text(data['nombre'] ?? '')),
-                          DataCell(Text(data['telefono'] ?? '')),
-                          DataCell(Text(data['email'] ?? '')),
-                          DataCell(Text(data['membresia'] ?? '')),
-                          DataCell(Text(data['estadoPago'] ?? '')),
-                          DataCell(Text(
-                              (data['contenedores'] as List<dynamic>?)
-                                      ?.join(', ') ??
-                                  '')),
+                          DataCell(Text(client.nombre)),
+                          DataCell(Text(client.telefono)),
+                          DataCell(Text(client.email)),
+                          DataCell(Text(client.membresia)),
+                          DataCell(Text(client.estadoPago)),
+                          DataCell(Text(client.contenedores.join(', '))),
                           DataCell(Row(
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit),
                                 onPressed: () => showDialog(
                                   context: context,
-                                  builder: (_) =>
-                                      ClientDialog(docId: doc.id, existing: data),
+                                  builder: (_) => ClientDialog(
+                                    docId: client.id,
+                                    existing: client,
+                                  ),
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete),
-                                onPressed: () => _confirmDelete(context, doc.id),
+                                onPressed: () => _confirmDelete(context, client.id),
                               ),
                             ],
                           )),
@@ -130,7 +131,7 @@ class ClientsPage extends StatelessWidget {
 /// DIALOGO PARA CREAR O EDITAR CLIENTES
 class ClientDialog extends StatefulWidget {
   final String? docId;
-  final Map<String, dynamic>? existing;
+  final Client? existing; // <- ahora usamos el modelo Client
 
   const ClientDialog({this.docId, this.existing, super.key});
 
@@ -151,13 +152,13 @@ class _ClientDialogState extends State<ClientDialog> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    nombreCtrl = TextEditingController(text: e?['nombre'] ?? '');
-    telCtrl = TextEditingController(text: e?['telefono'] ?? '');
-    emailCtrl = TextEditingController(text: e?['email'] ?? '');
+    nombreCtrl = TextEditingController(text: e?.nombre ?? '');
+    telCtrl = TextEditingController(text: e?.telefono ?? '');
+    emailCtrl = TextEditingController(text: e?.email ?? '');
     contenedoresCtrl = TextEditingController(
-        text: (e?['contenedores'] as List<dynamic>?)?.join(', ') ?? '');
-    membresia = e?['membresia'] ?? 'mensual';
-    estadoPago = e?['estadoPago'] ?? 'pagado';
+        text: e?.contenedores.join(', ') ?? '');
+    membresia = e?.membresia ?? 'mensual';
+    estadoPago = e?.estadoPago ?? 'pagado';
   }
 
   @override
@@ -221,27 +222,28 @@ class _ClientDialogState extends State<ClientDialog> {
         ElevatedButton(
           onPressed: () async {
             if (!_formKey.currentState!.validate()) return;
+
             final contList = contenedoresCtrl.text
                 .split(',')
                 .map((s) => s.trim())
                 .where((s) => s.isNotEmpty)
                 .toList();
 
-            final data = {
-              'nombre': nombreCtrl.text.trim(),
-              'telefono': telCtrl.text.trim(),
-              'email': emailCtrl.text.trim(),
-              'membresia': membresia,
-              'estadoPago': estadoPago,
-              'contenedores': contList,
-              'fechaRegistro': FieldValue.serverTimestamp(),
-            };
+            final clientData = Client(
+              id: widget.docId ?? '',
+              nombre: nombreCtrl.text.trim(),
+              telefono: telCtrl.text.trim(),
+              email: emailCtrl.text.trim(),
+              membresia: membresia,
+              estadoPago: estadoPago,
+              contenedores: contList,
+            );
 
             try {
               if (isEdit) {
-                await usersRef.doc(widget.docId).update(data);
+                await usersRef.doc(widget.docId).update(clientData.toMap());
               } else {
-                await usersRef.add(data);
+                await usersRef.add(clientData.toMap());
               }
               Navigator.of(context).pop();
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
