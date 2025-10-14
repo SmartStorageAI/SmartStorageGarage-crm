@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/clients_page.dart';
+import 'pages/containers_page.dart'; // <- importamos la página de contenedores
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class _SSCRMAppState extends State<SSCRMApp> {
   final List<Widget> pages = const [
     DashboardPage(),
     ClientsPage(),
+    ContainersPage(), // <- agregamos contenedores
   ];
 
   @override
@@ -57,6 +59,11 @@ class _SSCRMAppState extends State<SSCRMApp> {
                   icon: Icon(Icons.people_outline),
                   selectedIcon: Icon(Icons.people),
                   label: Text('Clientes'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.storage_outlined),
+                  selectedIcon: Icon(Icons.storage),
+                  label: Text('Contenedores'),
                 ),
               ],
             ),
