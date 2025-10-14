@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "841946131371",
+    "project_id": "sscrm-a2ea4",
+    "storage_bucket": "sscrm-a2ea4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:841946131371:android:8d87e4bf247121e22140ee",
+        "android_client_info": {
+          "package_name": "com.example.ss_crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKqZG85BkpFnRltz8ELqO-tK8YkFHwsM4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
