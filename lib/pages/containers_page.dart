@@ -6,223 +6,209 @@ import '../models/client.dart';
 class ContainersPage extends StatelessWidget {
   const ContainersPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final containersStream =
-        FirebaseFirestore.instance.collection('containers').snapshots();
-    final usersRef = FirebaseFirestore.instance.collection('users');
-    final containersRef = FirebaseFirestore.instance.collection('containers');
+@override
+Widget build(BuildContext context) {
+  final containersStream =
+      FirebaseFirestore.instance.collection('containers').snapshots();
+  final usersRef = FirebaseFirestore.instance.collection('users');
+  final containersRef = FirebaseFirestore.instance.collection('containers');
 
-    const primaryColor = Color(0xFF7E57C2); // morado
-    const accentColor = Color(0xFF42A5F5); // azul
+  // 🎨 Colores fijos para esta página
+  const morado = Color(0xFFA18CD1);
+  const azul   = Color(0xFF758EB7);
 
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Contenedores',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+  final theme = Theme.of(context);
+
+  return Scaffold(
+    backgroundColor: theme.scaffoldBackgroundColor,
+    body: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Contenedores',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: morado,
+                  fontWeight: FontWeight.bold,
                 ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                  ),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nuevo Contenedor'),
-                  onPressed: () async {
-                    final usersSnapshot = await usersRef.get();
-                    final clients = usersSnapshot.docs
-                        .map((d) => Client.fromDoc(d).nombre)
-                        .toList();
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Nuevo Contenedor'),
+                onPressed: () async {
+                  final usersSnapshot = await usersRef.get();
+                  final clients = usersSnapshot.docs
+                      .map((d) => Client.fromDoc(d).nombre)
+                      .toList();
 
-                    showDialog(
-                      context: context,
-                      builder: (_) => ContainerDialog(clients: clients),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 900),
-                    child: Card(
-                      elevation: 6,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: StreamBuilder<QuerySnapshot>(
-                          stream: containersStream,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
+                  showDialog(
+                    context: context,
+                    builder: (_) => ContainerDialog(clients: clients),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: containersStream,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
 
-                            if (!snapshot.hasData ||
-                                snapshot.data!.docs.isEmpty) {
-                              return const Center(
-                                  child: Text(
-                                      "No hay contenedores registrados."));
-                            }
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                                child:
+                                    Text('No hay contenedores registrados.'));
+                          }
 
-                            final containers = snapshot.data!.docs
-                                .map((doc) => ContainerModel.fromDoc(doc))
-                                .toList();
+                          final containers = snapshot.data!.docs
+                              .map((doc) => ContainerModel.fromDoc(doc))
+                              .toList();
 
-                            return SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columnSpacing: 24,
-                                horizontalMargin: 16,
-                                headingRowColor:
-                                    MaterialStateProperty.all(primaryColor),
-                                dataRowColor:
-                                    MaterialStateProperty.resolveWith(
-                                  (states) {
-                                    if (states
-                                        .contains(MaterialState.hovered)) {
-                                      return accentColor.withOpacity(0.08);
-                                    }
-                                    return Colors.white;
-                                  },
-                                ),
-                                headingTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                dataTextStyle: const TextStyle(
-                                  color: Colors.black87,
-                                ),
-                                border: TableBorder(
-                                  horizontalInside: BorderSide(
-                                    color: primaryColor.withOpacity(0.2),
-                                    width: 0.7,
-                                  ),
-                                  verticalInside: BorderSide(
-                                    color: primaryColor.withOpacity(0.1),
-                                    width: 0.5,
-                                  ),
-                                ),
-                                columns: const [
-                                  DataColumn(label: Text('Nombre')),
-                                  DataColumn(label: Text('Cliente')),
-                                  DataColumn(label: Text('Tamaño')),
-                                  DataColumn(label: Text('Ocupado')),
-                                  DataColumn(label: Text('Acciones')),
-                                ],
-                                rows: containers.map((container) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(container.nombre)),
-                                      DataCell(Text(container.cliente)),
-                                      DataCell(Text(container.size)),
-                                      // ----- Botón interactivo OCUPADO -----
-                                      DataCell(
-                                        IconButton(
-                                          tooltip: container.status
-                                              ? 'Marcar como libre'
-                                              : 'Marcar como ocupado',
-                                          icon: Icon(
-                                            container.status
-                                                ? Icons.check_circle
-                                                : Icons.cancel,
-                                            color: container.status
-                                                ? Colors.green
-                                                : Colors.red,
-                                          ),
-                                          onPressed: () async {
-                                            // Cambia el booleano en Firestore
-                                            await containersRef
-                                                .doc(container.id)
-                                                .update({
-                                              'status': !container.status,
-                                            });
-                                            // El StreamBuilder se recarga solo
-                                          },
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit),
-                                              color: primaryColor,
-                                              onPressed: () async {
-                                                final usersSnapshot =
-                                                    await usersRef.get();
-                                                final clients =
-                                                    usersSnapshot.docs
-                                                        .map((d) =>
-                                                            Client.fromDoc(d)
-                                                                .nombre)
-                                                        .toList();
-
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (_) =>
-                                                      ContainerDialog(
-                                                    clients: clients,
-                                                    docId: container.id,
-                                                    existing: container,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete),
-                                              color: Colors.red[400],
-                                              onPressed: () => _confirmDelete(
-                                                  context, container.id),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              columnSpacing: 24,
+                              horizontalMargin: 16,
+                              headingRowColor:
+                                  MaterialStateProperty.all(morado),
+                              dataRowColor:
+                                  MaterialStateProperty.resolveWith(
+                                (states) {
+                                  if (states
+                                      .contains(MaterialState.hovered)) {
+                                    return azul.withOpacity(0.08);
+                                  }
+                                  return Colors.white;
+                                },
                               ),
-                            );
-                          },
-                        ),
+                              headingTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              dataTextStyle: const TextStyle(
+                                color: Colors.black87,
+                              ),
+                              border: TableBorder(
+                                horizontalInside: BorderSide(
+                                  color: morado.withOpacity(0.2),
+                                  width: 0.7,
+                                ),
+                                verticalInside: BorderSide(
+                                  color: morado.withOpacity(0.1),
+                                  width: 0.5,
+                                ),
+                              ),
+                              columns: const [
+                                DataColumn(label: Text('Nombre')),
+                                DataColumn(label: Text('Cliente')),
+                                DataColumn(label: Text('Tamaño')),
+                                DataColumn(label: Text('Ocupado')),
+                                DataColumn(label: Text('Acciones')),
+                              ],
+                              rows: containers.map((container) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(Text(container.nombre)),
+                                    DataCell(Text(container.cliente)),
+                                    DataCell(Text(container.size)),
+                                    DataCell(
+                                      IconButton(
+                                        tooltip: container.status
+                                            ? 'Marcar como libre'
+                                            : 'Marcar como ocupado',
+                                        icon: Icon(
+                                          container.status
+                                              ? Icons.check_circle
+                                              : Icons.cancel,
+                                          color: container.status
+                                              ? Colors.green
+                                              : Colors.red,
+                                        ),
+                                        onPressed: () async {
+                                          await containersRef
+                                              .doc(container.id)
+                                              .update({
+                                            'status': !container.status,
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit),
+                                            color: morado,
+                                            onPressed: () async {
+                                              final usersSnapshot =
+                                                  await usersRef.get();
+                                              final clients =
+                                                  usersSnapshot.docs
+                                                      .map((d) =>
+                                                          Client.fromDoc(d)
+                                                              .nombre)
+                                                      .toList();
+
+                                              showDialog(
+                                                context: context,
+                                                builder: (_) =>
+                                                    ContainerDialog(
+                                                  clients: clients,
+                                                  docId: container.id,
+                                                  existing: container,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete),
+                                            color: Colors.red[400],
+                                            onPressed: () =>
+                                                _confirmDelete(context, container.id),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   void _confirmDelete(BuildContext context, String docId) {
     final containersRef =
@@ -236,14 +222,16 @@ class ContainersPage extends StatelessWidget {
               '¿Eliminar este contenedor? Esta acción no se puede deshacer.'),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancelar')),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
             TextButton(
               onPressed: () async {
                 await containersRef.doc(docId).delete();
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Contenedor eliminado')));
+                  const SnackBar(content: Text('Contenedor eliminado')),
+                );
               },
               child: const Text(
                 'Eliminar',
@@ -263,8 +251,12 @@ class ContainerDialog extends StatefulWidget {
   final String? docId;
   final ContainerModel? existing;
 
-  const ContainerDialog(
-      {required this.clients, this.docId, this.existing, super.key});
+  const ContainerDialog({
+    required this.clients,
+    this.docId,
+    this.existing,
+    super.key,
+  });
 
   @override
   State<ContainerDialog> createState() => _ContainerDialogState();
@@ -293,14 +285,13 @@ class _ContainerDialogState extends State<ContainerDialog> {
     final containersRef =
         FirebaseFirestore.instance.collection('containers');
     final usersRef = FirebaseFirestore.instance.collection('users');
-
-    const primaryColor = Color(0xFF7E57C2);
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         isEdit ? 'Editar Contenedor' : 'Nuevo Contenedor',
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.bold,
           color: primaryColor,
         ),
@@ -344,15 +335,10 @@ class _ContainerDialogState extends State<ContainerDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar')),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
           onPressed: () async {
             if (!_formKey.currentState!.validate()) return;
 
@@ -384,13 +370,17 @@ class _ContainerDialogState extends State<ContainerDialog> {
               }
 
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
                   content: Text(isEdit
                       ? 'Contenedor actualizado'
-                      : 'Contenedor creado')));
+                      : 'Contenedor creado'),
+                ),
+              );
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Error al guardar')));
+                const SnackBar(content: Text('Error al guardar')),
+              );
             }
           },
           child: Text(isEdit ? 'Guardar' : 'Crear'),
