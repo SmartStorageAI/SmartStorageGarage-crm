@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../models/client.dart'; // 👈 tu modelo de clientes
+
 // Misma paleta que todo el CRM
 const morado = Color(0xFFA18CD1);
 const azul = Color(0xFF758EB7);
@@ -62,11 +64,13 @@ class _DashboardPageState extends State<DashboardPage> {
         final email = (data['email'] ?? '').toString();
         if (nombre.toLowerCase().contains(q) ||
             email.toLowerCase().contains(q)) {
-          temp.add(_SearchResult(
-            titulo: nombre,
-            subtitulo: email.isEmpty ? 'Cliente' : email,
-            tipo: 'Cliente',
-          ));
+          temp.add(
+            _SearchResult(
+              titulo: nombre,
+              subtitulo: email.isEmpty ? 'Cliente' : email,
+              tipo: 'Cliente',
+            ),
+          );
         }
       }
 
@@ -77,12 +81,14 @@ class _DashboardPageState extends State<DashboardPage> {
         final cliente = (data['cliente'] ?? '').toString();
         if (nombre.toLowerCase().contains(q) ||
             cliente.toLowerCase().contains(q)) {
-          temp.add(_SearchResult(
-            titulo: nombre.isEmpty ? 'Contenedor' : nombre,
-            subtitulo:
-                cliente.isEmpty ? 'Contenedor' : 'Cliente: $cliente',
-            tipo: 'Contenedor',
-          ));
+          temp.add(
+            _SearchResult(
+              titulo: nombre.isEmpty ? 'Contenedor' : nombre,
+              subtitulo:
+                  cliente.isEmpty ? 'Contenedor' : 'Cliente: $cliente',
+              tipo: 'Contenedor',
+            ),
+          );
         }
       }
 
@@ -90,7 +96,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _results = temp;
       });
     } catch (e) {
-      // Si quieres, puedes mostrar un SnackBar aquí
       setState(() {
         _results = [];
       });
@@ -114,7 +119,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Streams para las métricas
+    // Streams para las métricas (TIEMPO REAL)
     final usersStream =
         FirebaseFirestore.instance.collection('users').snapshots();
     final containersStream =
@@ -179,7 +184,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 // 🔍 BARRA DE BÚSQUEDA
                 TextField(
                   controller: _searchCtrl,
-                  onSubmitted: _performSearch,
+                  onChanged: _performSearch,   // se actualiza mientras escribes
+                  onSubmitted: _performSearch, // y también al dar Enter
                   decoration: InputDecoration(
                     hintText: 'Buscar cliente o contenedor...',
                     prefixIcon: const Icon(Icons.search),
@@ -212,7 +218,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
 
-                // 🔍 RESULTADOS
+                // 🔍 RESULTADOS DE BÚSQUEDA
                 if (_searchQuery.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Card(
@@ -243,8 +249,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   children: [
                                     Text(
                                       'Resultados (${_results.length}):',
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
+                                      style:
+                                          theme.textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -254,10 +260,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                         dense: true,
                                         leading: CircleAvatar(
                                           radius: 16,
-                                          backgroundColor: r.tipo ==
-                                                  'Cliente'
-                                              ? morado.withOpacity(0.2)
-                                              : azul.withOpacity(0.2),
+                                          backgroundColor:
+                                              r.tipo == 'Cliente'
+                                                  ? morado.withOpacity(0.2)
+                                                  : azul.withOpacity(0.2),
                                           child: Icon(
                                             r.tipo == 'Cliente'
                                                 ? Icons.person
@@ -272,7 +278,9 @@ class _DashboardPageState extends State<DashboardPage> {
                                         subtitle: Text(r.subtitulo),
                                         trailing: Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: (r.tipo == 'Cliente'
                                                     ? morado
@@ -302,7 +310,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ] else
                   const SizedBox(height: 16),
 
-                // 🔹 MÉTRICAS (como ya las tenías)
+                // 🔹 MÉTRICAS EN TIEMPO REAL
                 StreamBuilder<QuerySnapshot>(
                   stream: usersStream,
                   builder: (context, usersSnap) {
@@ -319,18 +327,36 @@ class _DashboardPageState extends State<DashboardPage> {
 
                     final usersDocs = usersSnap.data!.docs;
 
-                    // Total clientes
-                    final totalClientes = usersDocs.length;
+                    // Usamos tu modelo Client para evitar errores de campos
+                    final clientes = usersDocs
+                        .map((d) => Client.fromDoc(d))
+                        .toList();
 
-                    // Pagos pendientes: estadoPago == 'pendiente'
-                    final pagosPendientes = usersDocs.where((doc) {
-                      final data =
-                          doc.data() as Map<String, dynamic>? ?? {};
-                      final estado = (data['estadoPago'] ?? '')
-                          .toString()
-                          .toLowerCase();
-                      return estado == 'pendiente';
-                    }).length;
+                    // Total clientes
+                    final totalClientes = clientes.length;
+
+                    // Pagos pendientes: clientes con estado "pendiente"
+                    final pagosPendientes = clientes
+                        .where((c) =>
+                            c.estadoPago.toLowerCase() == 'pendiente')
+                        .length;
+
+                    // Con base en la LISTA de contenedores por cliente
+                    final contenedoresPagados = clientes
+                        .where((c) =>
+                            c.estadoPago.toLowerCase() == 'pagado')
+                        .fold<int>(
+                            0,
+                            (prev, c) =>
+                                prev + (c.contenedores.length));
+
+                    final contenedoresCancelados = clientes
+                        .where((c) =>
+                            c.estadoPago.toLowerCase() == 'cancelado')
+                        .fold<int>(
+                            0,
+                            (prev, c) =>
+                                prev + (c.contenedores.length));
 
                     return StreamBuilder<QuerySnapshot>(
                       stream: containersStream,
@@ -355,13 +381,15 @@ class _DashboardPageState extends State<DashboardPage> {
                           return (data['status'] ?? false) == true;
                         }).length;
 
-                        final cards = [
+                        // 🔹 Creamos todas las tarjetas
+                        final cards = <Widget>[
                           _buildStatCard(
                             context,
                             title: 'Clientes activos',
                             value: totalClientes.toString(),
                             icon: Icons.people_alt_rounded,
                             accent: morado,
+                            primary: true,
                           ),
                           _buildStatCard(
                             context,
@@ -369,6 +397,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             value: contOcupados.toString(),
                             icon: Icons.inventory_2_rounded,
                             accent: azul,
+                            primary: true,
                           ),
                           _buildStatCard(
                             context,
@@ -376,21 +405,38 @@ class _DashboardPageState extends State<DashboardPage> {
                             value: pagosPendientes.toString(),
                             icon: Icons.pending_actions_rounded,
                             accent: const Color(0xFFEE6C77),
+                            primary: true,
+                          ),
+                          _buildStatCard(
+                            context,
+                            title: 'Contenedores pagados',
+                            value: contenedoresPagados.toString(),
+                            icon: Icons.check_circle_outline,
+                            accent: Colors.green,
+                          ),
+                          _buildStatCard(
+                            context,
+                            title: 'Contenedores cancelados',
+                            value: contenedoresCancelados.toString(),
+                            icon: Icons.cancel_outlined,
+                            accent: Colors.redAccent,
                           ),
                         ];
 
+                        Widget cardsLayout;
                         if (isWide) {
-                          return Row(
+                          cardsLayout = Row(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               for (int i = 0; i < cards.length; i++) ...[
-                                if (i > 0) const SizedBox(width: 24),
+                                if (i > 0) const SizedBox(width: 12),
                                 cards[i],
                               ],
                             ],
                           );
                         } else {
-                          return Column(
+                          cardsLayout = Column(
                             children: [
                               for (int i = 0; i < cards.length; i++) ...[
                                 if (i > 0) const SizedBox(height: 16),
@@ -399,6 +445,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                           );
                         }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: cardsLayout,
+                        );
                       },
                     );
                   },
@@ -411,61 +462,95 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // 🔸 Tarjeta de métrica
+  // 🔸 Tarjeta de métrica (sin textos extra)
   Widget _buildStatCard(
     BuildContext context, {
     required String title,
     required String value,
     required IconData icon,
     required Color accent,
+    bool primary = false,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Compactas para que entren 5 en una fila
+    final double width = primary ? 200 : 195;
+
     return Card(
-      elevation: 6,
+      margin: EdgeInsets.zero,
+      elevation: primary ? 8 : 5,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
       ),
-      child: Container(
-        width: 260,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // Iconito dentro de pill
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.16),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: accent,
-                    size: 24,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  value,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
+      child: SizedBox(
+        width: width,
+        height: 115, // misma altura para todas
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: LinearGradient(
+              colors: [
+                accent.withOpacity(primary ? 0.16 : 0.10),
+                accent.withOpacity(primary ? 0.03 : 0.015),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark ? Colors.white70 : Colors.black54,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Iconito dentro de pill
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.black.withOpacity(0.25)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withOpacity(0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      icon,
+                      color: accent,
+                      size: 20,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    value,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                      color: isDark ? Colors.white : const Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
