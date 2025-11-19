@@ -5,182 +5,207 @@ import '../models/client.dart';
 class ClientsPage extends StatelessWidget {
   const ClientsPage({super.key});
 
- @override
-Widget build(BuildContext context) {
-  final clientsStream =
-      FirebaseFirestore.instance.collection('users').snapshots();
+  @override
+  Widget build(BuildContext context) {
+    final clientsStream =
+        FirebaseFirestore.instance.collection('users').snapshots();
 
-  // 🎨 Colores de tu login
-  const morado = Color(0xFFA18CD1);
-  const azul = Color(0xFF758EB7);
+    // 🎨 Colores de tu login
+    const morado = Color(0xFFA18CD1);
+    const azul = Color(0xFF758EB7);
 
-  final theme = Theme.of(context);
+    final theme = Theme.of(context);
 
-  return Scaffold(
-    backgroundColor: theme.scaffoldBackgroundColor,
-    body: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Clientes',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: morado,
-                  fontWeight: FontWeight.bold,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Clientes',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: morado,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Nuevo Cliente'),
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) => const ClientDialog(),
+                const Spacer(),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nuevo Cliente'),
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => const ClientDialog(),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            // 👇 en vez de Center, alineamos hacia ARRIBA
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 24), // ajusta si quieres más/menos
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1050),
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    elevation: 6,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: clientsStream,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
+              ],
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              // 👇 en vez de Center, alineamos hacia ARRIBA
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1050),
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      elevation: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: clientsStream,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            }
 
-                          if (!snapshot.hasData ||
-                              snapshot.data!.docs.isEmpty) {
-                            return const Center(
-                                child: Text('No hay clientes registrados.'));
-                          }
+                            if (!snapshot.hasData ||
+                                snapshot.data!.docs.isEmpty) {
+                              return const Center(
+                                  child: Text('No hay clientes registrados.'));
+                            }
 
-                          final clients = snapshot.data!.docs
-                              .map((doc) => Client.fromDoc(doc))
-                              .toList();
+                            final clients = snapshot.data!.docs
+                                .map((doc) => Client.fromDoc(doc))
+                                .toList();
 
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columnSpacing: 24,
-                                horizontalMargin: 16,
-                                headingRowColor:
-                                    MaterialStateProperty.all(morado),
-                                dataRowColor:
-                                    MaterialStateProperty.resolveWith(
-                                  (states) {
-                                    if (states
-                                        .contains(MaterialState.hovered)) {
-                                      return azul.withOpacity(0.08);
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: DataTable(
+                                  columnSpacing: 24,
+                                  horizontalMargin: 16,
+                                  headingRowColor:
+                                      MaterialStateProperty.all(morado),
+                                  dataRowColor:
+                                      MaterialStateProperty.resolveWith(
+                                    (states) {
+                                      if (states
+                                          .contains(MaterialState.hovered)) {
+                                        return azul.withOpacity(0.08);
+                                      }
+                                      return Colors.white;
+                                    },
+                                  ),
+                                  headingTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  dataTextStyle: const TextStyle(
+                                    color: Colors.black87,
+                                  ),
+                                  border: TableBorder(
+                                    horizontalInside: BorderSide(
+                                      color: morado.withOpacity(0.2),
+                                      width: 0.7,
+                                    ),
+                                    verticalInside: BorderSide(
+                                      color: morado.withOpacity(0.1),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                  columns: const [
+                                    DataColumn(label: Text('Nombre')),
+                                    DataColumn(label: Text('Teléfono')),
+                                    DataColumn(label: Text('Email')),
+                                    DataColumn(label: Text('Membresía')),
+                                    DataColumn(label: Text('Estado Pago')),
+                                    DataColumn(label: Text('Contenedores')),
+                                    DataColumn(label: Text('Acciones')),
+                                  ],
+                                  rows: clients.map((client) {
+                                    // 🎨 Color según estado de pago
+                                    Color estadoColor;
+                                    switch (client.estadoPago.toLowerCase()) {
+                                      case 'pagado':
+                                        estadoColor = Colors.green;
+                                        break;
+                                      case 'pendiente':
+                                        estadoColor = Colors.amber;
+                                        break;
+                                      case 'cancelado':
+                                        estadoColor = Colors.red;
+                                        break;
+                                      default:
+                                        estadoColor = Colors.black87;
                                     }
-                                    return Colors.white;
-                                  },
-                                ),
-                                headingTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                dataTextStyle: const TextStyle(
-                                  color: Colors.black87,
-                                ),
-                                border: TableBorder(
-                                  horizontalInside: BorderSide(
-                                    color: morado.withOpacity(0.2),
-                                    width: 0.7,
-                                  ),
-                                  verticalInside: BorderSide(
-                                    color: morado.withOpacity(0.1),
-                                    width: 0.5,
-                                  ),
-                                ),
-                                columns: const [
-                                  DataColumn(label: Text('Nombre')),
-                                  DataColumn(label: Text('Teléfono')),
-                                  DataColumn(label: Text('Email')),
-                                  DataColumn(label: Text('Membresía')),
-                                  DataColumn(label: Text('Estado Pago')),
-                                  DataColumn(label: Text('Contenedores')),
-                                  DataColumn(label: Text('Acciones')),
-                                ],
-                                rows: clients.map((client) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(client.nombre)),
-                                      DataCell(Text(client.telefono)),
-                                      DataCell(Text(client.email)),
-                                      DataCell(Text(client.membresia)),
-                                      DataCell(Text(client.estadoPago)),
-                                      DataCell(
-                                        Text(
-                                          client.contenedores.join(', '),
-                                          overflow: TextOverflow.ellipsis,
+
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(Text(client.nombre)),
+                                        DataCell(Text(client.telefono)),
+                                        DataCell(Text(client.email)),
+                                        DataCell(Text(client.membresia)),
+                                        // 👇 Aquí va el texto coloreado
+                                        DataCell(
+                                          Text(
+                                            client.estadoPago,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: estadoColor,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      DataCell(
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit),
-                                              color: morado,
-                                              onPressed: () => showDialog(
-                                                context: context,
-                                                builder: (_) => ClientDialog(
-                                                  docId: client.id,
-                                                  existing: client,
+                                        DataCell(
+                                          Text(
+                                            client.contenedores.join(', '),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.edit),
+                                                color: morado,
+                                                onPressed: () => showDialog(
+                                                  context: context,
+                                                  builder: (_) => ClientDialog(
+                                                    docId: client.id,
+                                                    existing: client,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete),
-                                              color: Colors.red[400],
-                                              onPressed: () => _confirmDelete(
-                                                  context, client.id),
-                                            ),
-                                          ],
+                                              IconButton(
+                                                icon: const Icon(Icons.delete),
+                                                color: Colors.red[400],
+                                                onPressed: () =>
+                                                    _confirmDelete(
+                                                        context, client.id),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   void _confirmDelete(BuildContext context, String docId) {
     final usersRef = FirebaseFirestore.instance.collection('users');

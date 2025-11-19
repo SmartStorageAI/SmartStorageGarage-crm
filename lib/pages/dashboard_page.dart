@@ -1,19 +1,120 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
-// Misma paleta del resto del CRM
+// Misma paleta que todo el CRM
 const morado = Color(0xFFA18CD1);
 const azul = Color(0xFF758EB7);
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+// Modelo simple para los resultados de búsqueda
+class _SearchResult {
+  final String titulo;
+  final String subtitulo;
+  final String tipo; // 'Cliente' o 'Contenedor';
+
+  _SearchResult({
+    required this.titulo,
+    required this.subtitulo,
+    required this.tipo,
+  });
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  bool _isSearching = false;
+  List<_SearchResult> _results = [];
+
+  // 🔍 Llamada a Firestore para buscar en users + containers
+  Future<void> _performSearch(String query) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) {
+      setState(() {
+        _searchQuery = '';
+        _results = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _searchQuery = query;
+      _isSearching = true;
+    });
+
+    try {
+      final usersSnap =
+          await FirebaseFirestore.instance.collection('users').get();
+      final containersSnap =
+          await FirebaseFirestore.instance.collection('containers').get();
+
+      final List<_SearchResult> temp = [];
+
+      // Buscar en clientes
+      for (final doc in usersSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>? ?? {};
+        final nombre = (data['nombre'] ?? '').toString();
+        final email = (data['email'] ?? '').toString();
+        if (nombre.toLowerCase().contains(q) ||
+            email.toLowerCase().contains(q)) {
+          temp.add(_SearchResult(
+            titulo: nombre,
+            subtitulo: email.isEmpty ? 'Cliente' : email,
+            tipo: 'Cliente',
+          ));
+        }
+      }
+
+      // Buscar en contenedores
+      for (final doc in containersSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>? ?? {};
+        final nombre = (data['nombre'] ?? '').toString();
+        final cliente = (data['cliente'] ?? '').toString();
+        if (nombre.toLowerCase().contains(q) ||
+            cliente.toLowerCase().contains(q)) {
+          temp.add(_SearchResult(
+            titulo: nombre.isEmpty ? 'Contenedor' : nombre,
+            subtitulo:
+                cliente.isEmpty ? 'Contenedor' : 'Cliente: $cliente',
+            tipo: 'Contenedor',
+          ));
+        }
+      }
+
+      setState(() {
+        _results = temp;
+      });
+    } catch (e) {
+      // Si quieres, puedes mostrar un SnackBar aquí
+      setState(() {
+        _results = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Streams en tiempo real
+    // Streams para las métricas
     final usersStream =
         FirebaseFirestore.instance.collection('users').snapshots();
     final containersStream =
@@ -30,7 +131,7 @@ class DashboardPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🔹 NUEVO BANNER SUPERIOR
+                // 🔹 BANNER SUPERIOR
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -64,7 +165,7 @@ class DashboardPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Visualiza de un vistazo cuántos clientes tienes, cuántos contenedores están ocupados y los pagos pendientes.',
+                        'Visualiza de un vistazo tus clientes, contenedores y pagos pendientes.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                         ),
@@ -73,9 +174,135 @@ class DashboardPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
-                // 🔹 Métricas
+                // 🔍 BARRA DE BÚSQUEDA
+                TextField(
+                  controller: _searchCtrl,
+                  onSubmitted: _performSearch,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar cliente o contenedor...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() {
+                                _searchQuery = '';
+                                _results = [];
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF1C1F2A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(color: morado, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
+                    ),
+                  ),
+                ),
+
+                // 🔍 RESULTADOS
+                if (_searchQuery.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: _isSearching
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : _results.isEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text(
+                                    'No se encontraron resultados para tu búsqueda.',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                )
+                              : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Resultados (${_results.length}):',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ..._results.map((r) {
+                                      return ListTile(
+                                        dense: true,
+                                        leading: CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: r.tipo ==
+                                                  'Cliente'
+                                              ? morado.withOpacity(0.2)
+                                              : azul.withOpacity(0.2),
+                                          child: Icon(
+                                            r.tipo == 'Cliente'
+                                                ? Icons.person
+                                                : Icons.storage,
+                                            size: 18,
+                                            color: r.tipo == 'Cliente'
+                                                ? morado
+                                                : azul,
+                                          ),
+                                        ),
+                                        title: Text(r.titulo),
+                                        subtitle: Text(r.subtitulo),
+                                        trailing: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: (r.tipo == 'Cliente'
+                                                    ? morado
+                                                    : azul)
+                                                .withOpacity(0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            r.tipo,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: r.tipo == 'Cliente'
+                                                  ? morado
+                                                  : azul,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ] else
+                  const SizedBox(height: 16),
+
+                // 🔹 MÉTRICAS (como ya las tenías)
                 StreamBuilder<QuerySnapshot>(
                   stream: usersStream,
                   builder: (context, usersSnap) {
@@ -128,7 +355,6 @@ class DashboardPage extends StatelessWidget {
                           return (data['status'] ?? false) == true;
                         }).length;
 
-                        // 🔹 Tarjetas
                         final cards = [
                           _buildStatCard(
                             context,
