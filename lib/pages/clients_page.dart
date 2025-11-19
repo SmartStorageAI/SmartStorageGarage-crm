@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 👈 importante para los inputFormatters
+import 'package:flutter/services.dart'; // para los inputFormatters
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/client.dart';
 
@@ -256,12 +256,17 @@ class _ClientDialogState extends State<ClientDialog> {
   late TextEditingController nombreCtrl;
   late TextEditingController telCtrl;
   late TextEditingController emailCtrl;
-  late TextEditingController contenedoresCtrl;
+
   String membresia = 'mensual';
   String estadoPago = 'pagado';
 
   // 👉 cambia esto si quieres otro dominio
   static const String allowedDomain = '@gmail.com';
+
+  // 🔹 contenedores desde BD y seleccionados
+  List<String> _allContainers = [];
+  List<String> _selectedContainers = [];
+  bool _loadingContainers = true;
 
   @override
   void initState() {
@@ -270,10 +275,36 @@ class _ClientDialogState extends State<ClientDialog> {
     nombreCtrl = TextEditingController(text: e?.nombre ?? '');
     telCtrl = TextEditingController(text: e?.telefono ?? '');
     emailCtrl = TextEditingController(text: e?.email ?? '');
-    contenedoresCtrl =
-        TextEditingController(text: e?.contenedores.join(', ') ?? '');
     membresia = e?.membresia ?? 'mensual';
     estadoPago = e?.estadoPago ?? 'pagado';
+    _selectedContainers = List<String>.from(e?.contenedores ?? []);
+
+    _loadContainersFromDB();
+  }
+
+  Future<void> _loadContainersFromDB() async {
+    try {
+      final snap =
+          await FirebaseFirestore.instance.collection('containers').get();
+      final names = snap.docs
+          .map((d) {
+            final data = d.data() as Map<String, dynamic>? ?? {};
+            return (data['nombre'] ?? '').toString();
+          })
+          .where((n) => n.isNotEmpty)
+          .toSet()
+          .toList();
+
+      setState(() {
+        _allContainers = names;
+        _loadingContainers = false;
+      });
+    } catch (e) {
+      setState(() {
+        _allContainers = [];
+        _loadingContainers = false;
+      });
+    }
   }
 
   @override
@@ -421,13 +452,82 @@ class _ClientDialogState extends State<ClientDialog> {
                       ),
                       const SizedBox(height: 12),
 
-                      TextFormField(
-                        controller: contenedoresCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Contenedores (separados por coma)',
-                          border: OutlineInputBorder(),
+                      // 🔹 Selector múltiple de contenedores desde BD
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Contenedores asignados',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
+                      const SizedBox(height: 6),
+
+                      if (_loadingContainers)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else ...[
+                        DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: 'Seleccionar contenedor',
+                            border: OutlineInputBorder(),
+                          ),
+                          value: null,
+                          items: _allContainers.map((c) {
+                            return DropdownMenuItem(
+                              value: c,
+                              child: Text(c),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            if (!_selectedContainers.contains(value)) {
+                              setState(() {
+                                _selectedContainers.add(value);
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: _selectedContainers.isEmpty
+                                ? [
+                                    const Text(
+                                      'Sin contenedores seleccionados.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ]
+                                : _selectedContainers.map((c) {
+                                    return Chip(
+                                      label: Text(c),
+                                      deleteIcon: const Icon(
+                                        Icons.close,
+                                        size: 16,
+                                      ),
+                                      onDeleted: () {
+                                        setState(() {
+                                          _selectedContainers.remove(c);
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 16),
 
                       Row(
@@ -510,11 +610,8 @@ class _ClientDialogState extends State<ClientDialog> {
                         onPressed: () async {
                           if (!_formKey.currentState!.validate()) return;
 
-                          final contList = contenedoresCtrl.text
-                              .split(',')
-                              .map((s) => s.trim())
-                              .where((s) => s.isNotEmpty)
-                              .toList();
+                          final contList =
+                              List<String>.from(_selectedContainers);
 
                           final clientData = Client(
                             id: widget.docId ?? '',
