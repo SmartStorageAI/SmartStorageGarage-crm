@@ -8,6 +8,7 @@ import 'pages/dashboard_page.dart';
 import 'pages/clients_page.dart';
 import 'pages/containers_page.dart';
 import 'pages/graficas_page.dart'; // 👈 NUEVA
+import 'pages/monitoreo_page.dart';
 
 // Páginas de auth
 import 'pages/login_page.dart';
@@ -19,9 +20,7 @@ const azul = Color(0xFF758EB7);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const SSCRMApp());
 }
 
@@ -38,8 +37,9 @@ class _SSCRMAppState extends State<SSCRMApp> {
 
   void _toggleTheme() {
     setState(() {
-      _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
     });
   }
 
@@ -72,29 +72,29 @@ class _SSCRMAppState extends State<SSCRMApp> {
       routes: {
         // LOGIN
         '/login': (context) => LoginPage(
-              onLoginSuccess: () {
-                Navigator.pushReplacementNamed(context, '/dashboard');
-              },
-              onGoToSignup: () {
-                Navigator.pushReplacementNamed(context, '/signup');
-              },
-            ),
+          onLoginSuccess: () {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          },
+          onGoToSignup: () {
+            Navigator.pushReplacementNamed(context, '/signup');
+          },
+        ),
 
         // SIGNUP
         '/signup': (context) => SignupPage(
-              onSignupSuccess: () {
-                Navigator.pushReplacementNamed(context, '/dashboard');
-              },
-              onGoToLogin: () {
-                Navigator.pushReplacementNamed(context, '/login');
-              },
-            ),
+          onSignupSuccess: () {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          },
+          onGoToLogin: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+        ),
 
         // DASHBOARD SHELL (layout con el NavigationRail)
         '/dashboard': (context) => DashboardShell(
-              onToggleTheme: _toggleTheme,
-              isDarkMode: _themeMode == ThemeMode.dark,
-            ),
+          onToggleTheme: _toggleTheme,
+          isDarkMode: _themeMode == ThemeMode.dark,
+        ),
       },
     );
   }
@@ -123,6 +123,7 @@ class _DashboardShellState extends State<DashboardShell> {
     ClientsPage(),
     ContainersPage(),
     GraficasPage(), // 👈 NUEVA PÁGINA
+    MonitoreoPage(),
   ];
 
   Future<void> _logout() async {
@@ -144,9 +145,7 @@ class _DashboardShellState extends State<DashboardShell> {
               Container(
                 decoration: const BoxDecoration(
                   color: morado,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -173,10 +172,7 @@ class _DashboardShellState extends State<DashboardShell> {
                 padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
                 child: Text(
                   '¿Quieres salir del CRM?',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 15,
-                  ),
+                  style: TextStyle(color: Colors.black87, fontSize: 15),
                 ),
               ),
               const SizedBox(height: 8),
@@ -263,9 +259,7 @@ class _DashboardShellState extends State<DashboardShell> {
                 color: Colors.black87,
                 fontWeight: FontWeight.bold,
               ),
-              unselectedLabelTextStyle: const TextStyle(
-                color: Colors.black54,
-              ),
+              unselectedLabelTextStyle: const TextStyle(color: Colors.black54),
 
               destinations: const [
                 NavigationRailDestination(
@@ -288,6 +282,11 @@ class _DashboardShellState extends State<DashboardShell> {
                   selectedIcon: Icon(Icons.bar_chart),
                   label: Text('Gráficas'),
                 ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.monitor_heart_outlined),
+                  selectedIcon: Icon(Icons.monitor_heart),
+                  label: Text('Monitoreo'),
+                ),
               ],
 
               // 🔹 Toggle de tema + botón salir
@@ -302,9 +301,7 @@ class _DashboardShellState extends State<DashboardShell> {
                           ? 'Cambiar a modo claro'
                           : 'Cambiar a modo oscuro',
                       icon: Icon(
-                        widget.isDarkMode
-                            ? Icons.dark_mode
-                            : Icons.light_mode,
+                        widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
                         color: const Color.fromARGB(106, 0, 0, 0),
                       ),
                       onPressed: widget.onToggleTheme,
@@ -327,9 +324,7 @@ class _DashboardShellState extends State<DashboardShell> {
           ),
 
           // 🔹 Contenido principal
-          Expanded(
-            child: pages[selectedIndex],
-          ),
+          Expanded(child: pages[selectedIndex]),
         ],
       ),
     );
